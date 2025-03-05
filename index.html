@@ -1,68 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Open Back Camera</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLO Object Detection</title>
     <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body class="bg-gray-100 flex justify-center items-center min-h-screen">
-    <div class="bg-white shadow-lg rounded-lg p-6 w-96 text-center">
-      <h2 class="text-2xl font-semibold text-gray-700 mb-4">
-        Back Camera Access
-      </h2>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
 
-      <div class="space-y-3">
-        <button
-          id="openBackCamera"
-          class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md w-full transition"
-        >
-          Open Back Camera
-        </button>
-        <button
-          id="closeCamera"
-          class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md w-full transition"
-        >
-          Turn Off Camera
-        </button>
-      </div>
+    <div class="bg-white shadow-lg rounded-lg p-4 w-full max-w-md text-center">
+        <h2 class="text-2xl font-semibold text-gray-700 mb-4">YOLO Object Detection</h2>
+        
+        <div class="space-y-3">
+            <button id="openBackCamera" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md w-full transition">
+                Open Back Camera
+            </button>
+            <button id="closeCamera" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md w-full transition">
+                Turn Off Camera
+            </button>
+        </div>
 
-      <div class="mt-4">
-        <video
-          id="webcam"
-          class="w-full h-64 rounded-lg shadow-md border border-gray-300"
-          autoplay
-        ></video>
-      </div>
+        <div class="mt-4 relative">
+            <video id="webcam" class="w-full h-64 rounded-lg shadow-md border border-gray-300" autoplay></video>
+            <canvas id="canvas" class="absolute top-0 left-0"></canvas>
+        </div>
     </div>
 
     <script>
-      let videoStream = null;
+        let videoStream = null;
+        let model = null;
 
-      document
-        .getElementById("openBackCamera")
-        .addEventListener("click", function () {
-          navigator.mediaDevices
-            .getUserMedia({ video: { facingMode: "environment" } })
-            .then(function (stream) {
-              let video = document.getElementById("webcam");
-              video.srcObject = stream;
-              videoStream = stream; // Store the stream for later use
-            })
-            .catch(function (error) {
-              console.error("Error accessing back camera:", error);
-            });
+        // Load COCO-SSD model
+        async function loadModel() {
+            model = await cocoSsd.load();
+            console.log("YOLO Model Loaded!");
+        }
+        loadModel(); // Load model on startup
+
+        document.getElementById("openBackCamera").addEventListener("click", async function() {
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "environment" }
+                });
+
+                let video = document.getElementById("webcam");
+                video.srcObject = videoStream;
+                video.onloadedmetadata = () => {
+                    video.play();
+                    detectObjects(); // Start object detection
+                };
+            } catch (error) {
+                console.error("Error accessing back camera:", error);
+            }
         });
 
-      document
-        .getElementById("closeCamera")
-        .addEventListener("click", function () {
-          if (videoStream) {
-            let tracks = videoStream.getTracks();
-            tracks.forEach((track) => track.stop()); // Stop each track (video & audio)
-            document.getElementById("webcam").srcObject = null; // Clear the video element
-          }
+        document.getElementById("closeCamera").addEventListener("click", function() {
+            if (videoStream) {
+                let tracks = videoStream.getTracks();
+                tracks.forEach(track => track.stop()); // Stop all tracks
+                document.getElementById("webcam").srcObject = null;
+            }
         });
+
+        // Object detection function
+        async function detectObjects() {
+            const video = document.getElementById("webcam");
+            const canvas = document.getElementById("canvas");
+            const ctx = canvas.getContext("2d");
+
+            // Set canvas size to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            if (!model) {
+                console.log("Model not loaded yet...");
+                return;
+            }
+
+            async function detect() {
+                const predictions = await model.detect(video);
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                predictions.forEach(prediction => {
+                    const [x, y, width, height] = prediction.bbox;
+                    ctx.strokeStyle = "red";
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x, y, width, height);
+
+                    ctx.fillStyle = "red";
+                    ctx.font = "16px Arial";
+                    ctx.fillText(prediction.class + " (" + Math.round(prediction.score * 100) + "%)", x, y - 10);
+                });
+
+                requestAnimationFrame(detect); // Loop detection
+            }
+
+            detect(); // Start detecting
+        }
     </script>
-  </body>
+
+</body>
 </html>
