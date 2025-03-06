@@ -1,12 +1,12 @@
 let videoStream = null;
 let model = null;
 
-// Load COCO-SSD model
+
 async function loadModel() {
     model = await cocoSsd.load();
     console.log("Model Loaded!");
 }
-loadModel(); // Load model on startup
+loadModel();
 
 document.getElementById("openBackCamera").addEventListener("click", async function () {
     try {
@@ -18,7 +18,7 @@ document.getElementById("openBackCamera").addEventListener("click", async functi
         video.srcObject = videoStream;
         video.onloadedmetadata = () => {
             video.play();
-            detectObjects(); // Start object detection
+            detectObjects();
         };
     } catch (error) {
         console.error("Error accessing back camera:", error);
@@ -28,22 +28,22 @@ document.getElementById("openBackCamera").addEventListener("click", async functi
 document.getElementById("closeCamera").addEventListener("click", function () {
     if (videoStream) {
         let tracks = videoStream.getTracks();
-        tracks.forEach((track) => track.stop()); // Stop all tracks
+        tracks.forEach((track) => track.stop());
         videoStream = null;
     }
 
-    // Remove video element from the DOM
+    
     document.getElementById("webcam").remove();
     document.getElementById("canvas").remove();
 });
 
-// Object detection function
+
 async function detectObjects() {
     const video = document.getElementById("webcam");
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
 
-    // Set canvas size to match video
+    
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
@@ -73,8 +73,8 @@ async function detectObjects() {
             );
         });
 
-        requestAnimationFrame(detect); // Loop detection
+        requestAnimationFrame(detect);
     }
 
-    detect(); // Start detecting
+    detect(); 
 }
